@@ -13,11 +13,11 @@ install.packages("sjstats")
 install.packages("tidyverse")
 install.packages("tidyr")
 install.packages("dplyr")
+install.packages("plyr")
 install.packages("FSA")
 install.packages("psych")
 install.packages("car")
-install.packages("hrbrthemes")
-install.packages("viridis")
+
 
 #load these libraries
 library(readr)
@@ -31,11 +31,11 @@ library(sjstats)
 library(tidyverse)
 library(tidyr)
 library(dplyr)
+library(plyr)
 library(FSA)
 library(psych)
 library(car)
-library(hrbrthemes)
-library(viridis)
+
 
 #Import the Dataset
 df <- read_csv("C:/Users/maxno/OneDrive/Desktop/PSI_Project/dataset.csv")
@@ -90,11 +90,11 @@ table(df$new_col)
 #drop columns after cleaning
 df <-select(df, c(-traveltime.p,-guardian.p,-studytime.p,-schoolsup.p,-activities.p,-higher.p,-romantic.p,-famrel.p,-freetime.p,-goout.p,-Dalc.p,-Walc.p,-health.p,-famsup.p,-new_col))
 #Renaming of columns
-df <- df %>% rename(traveltime=traveltime.m,guardian=guardian.m,studytime=studytime.m,schoolsup=schoolsup.m,activities=activities.m,higher=higher.m,romantic=romantic.m,famrel=famrel.m,freetime=freetime.m,goout=goout.m,dalc=Dalc.m,walc=Walc.m,health=health.m, famsup=famsup.m) 
+df <- df %>% dplyr::rename(traveltime=traveltime.m,guardian=guardian.m,studytime=studytime.m,schoolsup=schoolsup.m,activities=activities.m,higher=higher.m,romantic=romantic.m,famrel=famrel.m,freetime=freetime.m,goout=goout.m,dalc=Dalc.m,walc=Walc.m,health=health.m, famsup=famsup.m) 
 View(df)
 
-#DONE IN EXPLORATION PHASE - removing all student win 0 value in pG3 & mG3. Shrinking the dataset from 382 -> 340 students.
-#NB: DO NOT INCLUDE NEXT TWO LINES TO CARRY OUT THE PREPERATION STEP - Do keep for exploration onwards
+# removing all student win 0 value in pG3 & mG3. Shrinking the dataset from 382 -> 340 students.
+#NB: Done for for exploration onwards
 tempdf<-df[df$mG3 != 0, ]
 df<-tempdf[tempdf$pG3 != 0, ]
 str(df)
@@ -262,6 +262,19 @@ effectsize::t_to_d(t = temp$statistic, temp$parameter)
 effes=round((temp$statistic*temp$statistic)/((temp$statistic*temp$statistic)+(temp$parameter)),3)
 effes
 
+#install packages and load
+install.packages("hrbrthemes")
+install.packages("viridis")
+install.packages("foreign")
+install.packages("stats")
+install.packages("ggplot2")
+library(hrbrthemes)
+library(viridis)
+library(foreign)
+library(stats)
+library(dplyr)
+library(ggplot2)
+
 #Creating Boxplot for visual display of group schoolsup and mG3 difference
 df %>%
   ggplot( aes(x=df$schoolsup, y=df$mG3, fill=df$schoolsup)) +
@@ -314,9 +327,10 @@ effectsize::t_to_d(t = temp$statistic, temp$parameter)
 effes=round((temp$statistic*temp$statistic)/((temp$statistic*temp$statistic)+(temp$parameter)),3)
 effes
 
+
 #Creating Boxplot for visual display of group schoolsup and mG3 difference
 df %>%
-  ggplot( aes(x=df$paid.m, y=df$mG3, fill=df$paid.m)) +
+  ggplot(aes(x=df$paid.m, y=df$mG3, fill=df$paid.m)) +
   geom_boxplot() +
   scale_fill_viridis(discrete = TRUE, alpha=0.6) +
   geom_jitter(color="black", size=0.4, alpha=0.9) +
@@ -407,3 +421,138 @@ df %>%
   xlab("higher education goal") +
   ylab("Portuguese final results") +
   ggtitle("higher and pG3 difference")
+
+#Part 3 - Predictive Models
+#Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+# package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+#Multi Linear Regression - mG2 predicted by higher and paid.m
+install.packages("lm.beta")
+install.packages("stargazer")
+install.packages("caret")
+install.packages("mlbench")
+install.packages("Epi")
+install.packages("arm")
+install.packages("DescTools")
+install.packages("lmtest")
+install.packages("generalhoslem")
+install.packages("regclass")
+library(lm.beta)
+library(stargazer)
+library(caret)
+library(mlbench)
+library(Epi)
+library(arm)
+library(DescTools)
+library(lmtest)
+library(generalhoslem)
+library(regclass)
+
+
+df$higher<-factor(df$higher)
+df$paid.m<-factor(df$paid.m)
+contrasts(df$higher)
+contrasts(df$paid.m)
+#mutate to change interpretation of coefficents for paid.m
+df <- df %>% mutate(paid.m = relevel(paid.m, ref="yes"))
+contrasts(df$paid.m)
+model1<-lm(df$mG3~df$higher+df$paid.m)
+anova(model1)
+summary(model1)
+summary(model1)$coefficient
+stargazer(model1, type="text") #Tidy stats
+lm.beta(model1)
+
+#Multi Linear Regression model 2
+
+model2<-lm(df$mG3~df$mG1+df$paid.m+df$higher)
+anova(model2)
+summary(model2)
+summary(model2)$coefficient
+stargazer(model2, type="text") #Tidy output of all the required stats
+lm.beta(model2)
+stargazer(model1, model2, type="text") #Quick model comparison
+contrasts(df$higher)
+
+#Model3 - Test effectiveness of one variable alone
+model3<-lm(df$mG3~df$mG1+df$higher)
+anova(model3)
+summary(model3)
+summary(model3)$coefficient
+stargazer(model3, type="text") #Tidy output of all the required stats
+lm.beta(model3)
+
+#Plot Model 2 for analysis
+plot(model2)
+
+##################Logistic Models#######################
+library(Epi)#ROC
+library(DescTools)#statistics
+library(stargazer)
+library(foreign)
+library(arm)#calculating probabilities
+library(lmtest)#calculation of Chi-square
+library(car)#test for co-linearity of predictors
+library(generalhoslem)#test assumption of linearity
+library(regclass)#For confusion matrix
+
+#ensure variables are factors for modelling
+df$higher = as.factor(df$higher)
+df$activities = as.factor(df$activities)
+df$studytime = as.factor(df$studytime)
+df$schoolsup = as.factor(df$schoolsup)
+df$paid.m = as.factor(df$paid.m)
+dflog<-as.data.frame(df)
+
+########Building of Log Model 1#########
+logmodel1 <- glm(paid.m ~ famsup +higher+schoolsup, data = dflog, na.action = na.exclude, family = binomial(link=logit))
+#Full summary of the model
+summary(logmodel1)
+lmtest::lrtest(logmodel1)
+DescTools::PseudoR2(logmodel1, which="CoxSnell")
+DescTools::PseudoR2(logmodel1, which="Nagelkerke")
+modelChi <- logmodel1$null.deviance - logmodel1$deviance
+modelChi
+pseudo.R2 <- modelChi / logmodel1$null.deviance
+pseudo.R2
+chidf <- logmodel1$df.null - logmodel1$df.residual
+chidf
+Epi::ROC(form=dflog$paid.m ~ dflog$higher +dflog$famsup+dflog$schoolsup, plot="ROC")
+stargazer(logmodel1, type="text")
+exp(coefficients(logmodel1))
+cbind(Estimate=round(coef(logmodel1),4),
+      OR=round(exp(coef(logmodel1)),4))
+regclass::confusion_matrix(logmodel1)
+#Check assumptions of linearity & log odds using a Hosmer-Lemeshow test > if above 0.05 p value the model is above poor fit 
+generalhoslem::logitgof(dflog$paid.m, fitted(logmodel1))
+#Collinearity check
+vifmodel<-car::vif(logmodel1)#You can ignore the warning messages, GVIF^(1/(2*Df)) is the value of interest
+vifmodel
+1/vifmodel
+
+#################Building of Log Model 2#################
+logmodel2 <- glm(paid.m ~ famsup+schoolsup+higher+internet+activities, data = dflog, na.action = na.exclude, family = binomial(link=logit))
+#Full summary of the model
+summary(logmodel2)
+lmtest::lrtest(logmodel2)
+DescTools::PseudoR2(logmodel2, which="CoxSnell")
+DescTools::PseudoR2(logmodel2, which="Nagelkerke")
+modelChi <- logmodel2$null.deviance - logmodel2$deviance
+modelChi
+pseudo.R2 <- modelChi / logmodel2$null.deviance
+pseudo.R2
+chidf <- logmodel2$df.null - logmodel2$df.residual
+chidf
+Epi::ROC(form=dflog$paid.m ~ dflog$famsup +dflog$higher+dflog$schoolsup+dflog$internet+dflog$activities, plot="ROC")
+stargazer(logmodel2, type="text")
+exp(coefficients(logmodel2))
+cbind(Estimate=round(coef(logmodel2),4),
+      OR=round(exp(coef(logmodel2)),4))
+regclass::confusion_matrix(logmodel2)
+#Check assumptions of linearity & log odds using a Hosmer-Lemeshow test > if below 0.05 p value the model is above poor fit 
+generalhoslem::logitgof(dflog$paid.m, fitted(logmodel2))
+#Collinearity check
+vifmodel<-car::vif(logmodel2)#You can ignore the warning messages, GVIF^(1/(2*Df)) is the value of interest
+vifmodel
+1/vifmodel
+
+######## The End #########
